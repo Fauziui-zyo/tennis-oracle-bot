@@ -1,12 +1,13 @@
-name: Tennis Oracle Quant V5
+name: Tennis Oracle Quant V10
 
 on:
   schedule:
+    # Berjalan otomatis setiap 6 jam
     - cron: '0 */6 * * *'
   workflow_dispatch:
 
 permissions:
-  contents: write # Wajib agar bot bisa menulis ke database memori
+  contents: write
 
 jobs:
   build:
@@ -32,11 +33,10 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python bot.py
 
-      - name: Commit and Push Memory (Sistem Belajar)
+      - name: Commit and Push Parlay Database
         run: |
           git config --global user.name "Tennis-Oracle-Bot"
           git config --global user.email "bot@tennisoracle.com"
-          git add database_memori.json
-          # Hanya commit jika ada perubahan memori
-          git commit -m "Auto-update database memori" || echo "No changes to commit"
+          git add parlay_raksasa.json
+          git commit -m "Auto-update parlay database" || echo "No new matches to commit"
           git push
