@@ -2,8 +2,8 @@ name: Tennis Oracle Runner
 
 on:
   schedule:
-    - cron: '0 */6 * * *' # Bot jalan otomatis setiap 6 jam
-  workflow_dispatch:      # Tombol untuk menjalankan manual kapan saja
+    - cron: '0 */6 * * *' # Otomatis jalan tiap 6 jam
+  workflow_dispatch:      # Tombol manual
 
 jobs:
   build:
@@ -15,10 +15,12 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.9'
+          python-version: '3.10' # VERSI TERBARU
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install --upgrade pip
+          pip install requests pandas google-generativeai
 
       - name: Run Analyst Bot
         env:
