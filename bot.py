@@ -1,13 +1,14 @@
 import os
 import requests
+from datetime import datetime
 from google import genai
+from google.genai import types
 
 def get_client():
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         print("ERROR: API Key tidak ditemukan!")
         return None
-    # Menggunakan api_version v1 agar stabil
     return genai.Client(api_key=api_key, http_options={'api_version': 'v1'})
 
 def send_telegram(message):
@@ -20,7 +21,7 @@ def send_telegram(message):
     
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     
-    # Batasi panjang pesan agar tidak ditolak Telegram (Limit 4096 karakter)
+    # Membatasi panjang teks agar tidak ditolak Telegram
     if len(message) > 4000:
         message = message[:4000] + "\n\n...[Teks dipotong]"
         
@@ -36,79 +37,59 @@ def send_telegram(message):
         print(f"Error koneksi Telegram: {e}")
 
 # ====================================================
-# 1. LIVE DATA SCANNER (MARET 2026 FOCUS)
+# STRATEGI REAL-TIME SEARCH (MENEMBUS BATASAN WAKTU)
 # ====================================================
-def run_realtime_calibration(client):
+def run_integrated_analysis(client):
     if not client: return "Klien AI tidak siap."
     
-    # Sinkronisasi Waktu Paksa
-    current_date = "31 Maret 2026"
+    current_date = datetime.now().strftime('%d %B %Y')
+    
     prompt = f"""
-    [SYSTEM ROLE: DATA SCIENTIST & TENNIS ANALYST]
-    [CURRENT DATE: {current_date}]
-    
-    TUGAS: Ambil 2 pertandingan ATP/Challenger yang baru saja SELESAI di Miami Open atau turnamen Maret 2026 lainnya.
-    
-    PROSES:
-    1. Bedah statistik servis & return pre-match.
-    2. Berikan [CONFIDENCE_HDP: XX%] untuk probabilitas Underdog menang Handicap +1.5 Set.
-    3. Verifikasi dengan skor asli 2026.
-    4. Jika [CONFIDENCE_HDP] > 85% tapi kalah, temukan "Anomali Data" (Cedera/Cuaca/Mental).
-    """
-    
-    try:
-        response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
-        return response.text
-    except Exception as e:
-        return f"Gagal kalibrasi: {e}"
-
-# ====================================================
-# 2. OPTIMIZED ORACLE (THE 85% THRESHOLD)
-# ====================================================
-def generate_pasti_prediction(client):
-    if not client: return "Klien AI tidak siap."
-    
-    current_date = "31 Maret 2026"
-    prompt_live = f"""
-    [SYSTEM ROLE: QUANT ORACLE V8.0]
+    [SYSTEM ROLE: REAL-TIME QUANT ANALYST]
     [DATE: {current_date}]
-    [STRATEGY: SET HANDICAP +1.5 VALUE HUNTER]
+    [STRICT RULE: DILARANG MELAKUKAN SIMULASI. WAJIB GUNAKAN DATA ASLI DARI PENCARIAN WEB]
     
-    Cari 1 pertandingan NYATA untuk hari ini atau besok (31 Maret / 1 April 2026).
+    TUGAS UTAMA ANDA HARI INI:
+    1. CARI (SEARCH) di web hasil pertandingan tenis ATP/Challenger yang baru saja selesai dalam 24 jam terakhir.
+    2. Lakukan "Blind Backtest": Berikan [CONFIDENCE_HDP: XX%] untuk salah satu laga tersebut seolah belum tahu hasilnya berdasarkan statistik pre-match, lalu bandingkan dengan skor aslinya.
+    3. CARI (SEARCH) di web jadwal pertandingan tenis ATP/Challenger untuk hari ini atau besok.
+    4. Analisa statistik pemain yang akan bertanding. Temukan 1 "SIGNAL GAS" (CONFIDENCE > 85%) dengan kriteria:
+       - Underdog memiliki rekor "Return Points Won" yang kuat.
+       - Favorit memiliki kelemahan servis (Double Faults tinggi atau 1st Serve % rendah).
     
-    KRITERIA "PASTI MENANG" (CONFIDENCE > 85%):
-    - Underdog Return Points Won > 42%.
-    - Favorit 1st Serve % < 60% di laga terakhir.
-    - Kondisi Lapangan mendukung gaya Underdog.
-
-    JIKA JADWAL ATAU DATA TIDAK VALID, BERIKAN LABEL [HOLD/NO-BET].
-
-    FORMAT OUTPUT:
-    MATCH: [Pemain A vs Pemain B]
-    VULNERABILITY: [Kelemahan fatal pemain favorit]
+    JIKA TIDAK ADA DATA YANG MEMENUHI SYARAT, BERIKAN LABEL [HOLD / NO-BET].
+    
+    FORMAT OUTPUT (SINGKAT & JELAS):
+    === 🧪 REAL-TIME CALIBRATION ===
+    [Analisa laga kemarin berdasarkan data pencarian web]
+    
+    === 🎯 REAL-TIME PREDIKSI PASTI ===
+    MATCH: [Nama Pemain A vs Pemain B]
+    VULNERABILITY: [Kelemahan lawan berdasarkan data nyata web]
     [CONFIDENCE_HDP: XX%]
-    SIGNAL: [GAS / HOLD]
-    VALUE REASONING: [Kenapa data ini valid?]
+    SIGNAL: [GAS PASANG BESAR / HOLD (NO-BET)]
     """
-    
+
     try:
-        response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt_live)
+        # Menjalankan AI dengan fitur Google Search aktif
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                tools=[{"google_search": {}}]
+            )
+        )
         return response.text
     except Exception as e:
-        return f"Gagal prediksi live: {e}"
+        return f"Gagal dalam analisis terintegrasi: {e}"
 
 if __name__ == "__main__":
-    print("--- Menjalankan V8.0 (Sync 2026) ---")
+    print("--- Menjalankan V9.0 (Search Integrated) ---")
     ai_client = get_client()
     
-    print("\n[1/2] Memulai Kalibrasi Real-Time...")
-    calibration = run_realtime_calibration(ai_client)
+    print("\n[!] Mengakses Google Search untuk mencari data tenis terbaru...")
+    full_analysis = run_integrated_analysis(ai_client)
     
-    print("\n[2/2] Memulai Prediksi Pasti...")
-    prediction = generate_pasti_prediction(ai_client)
-    
-    final_report = f"=== 🧪 KALIBRASI MARET 2026 ===\n{calibration}\n\n=== 🎯 PREDIKSI PASTI ===\n{prediction}"
-    
-    print("\n" + final_report)
-    send_telegram(final_report)
+    print("\n" + full_analysis)
+    send_telegram(full_analysis)
     print("\n--- Sesi Selesai ---")
