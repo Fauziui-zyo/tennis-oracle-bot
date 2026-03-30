@@ -1,95 +1,127 @@
 import os
+import json
 import requests
 from datetime import datetime
 from google import genai
 from google.genai import types
 
-def get_client():
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        print("ERROR: API Key tidak ditemukan!")
-        return None
-    return genai.Client(api_key=api_key, http_options={'api_version': 'v1'})
+# ====================================================
+# CONFIGURASI DATABASE LOKAL
+# ====================================================
+DB_FILE = "parlay_raksasa.json"
+TARGET_MATCHES = 30
 
+def load_parlay_list():
+    if os.path.exists(DB_FILE):
+        try:
+            with open(DB_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return []
+    return []
+
+def save_parlay_list(data):
+    with open(DB_FILE, 'w') as f:
+        json.dump(data, f, indent=4)
+
+# ====================================================
+# INTEGRASI TELEGRAM (SILENT MODE)
+# ====================================================
 def send_telegram(message):
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     chat_id = os.environ.get("TELEGRAM_CHAT_ID")
     
-    if not token or not chat_id:
-        print("Peringatan: Telegram Secret belum diset.")
+    # Hanya kirim jika ada isi pesan (tidak kosong)
+    if not token or not chat_id or not message.strip(): 
         return
-    
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    
-    # Membatasi panjang teks agar tidak ditolak Telegram
-    if len(message) > 4000:
-        message = message[:4000] + "\n\n...[Teks dipotong]"
         
-    payload = {"chat_id": chat_id, "text": message}
-    
-    try:
-        response = requests.post(url, json=payload)
-        if response.status_code == 200:
-            print("Berhasil mengirim laporan ke Telegram!")
-        else:
-            print(f"Gagal kirim ke Telegram. Status: {response.status_code}")
-    except Exception as e:
-        print(f"Error koneksi Telegram: {e}")
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    requests.post(url, json={"chat_id": chat_id, "text": message})
 
 # ====================================================
-# STRATEGI REAL-TIME SEARCH (MENEMBUS BATASAN WAKTU)
+# KONEKSI AI
 # ====================================================
-def run_integrated_analysis(client):
-    if not client: return "Klien AI tidak siap."
-    
-    current_date = datetime.now().strftime('%d %B %Y')
+def get_client():
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key: 
+        return None
+    return genai.Client(api_key=api_key, http_options={'api_version': 'v1'})
+
+# ====================================================
+# MESIN PENCARI & PENYARING (REAL-TIME)
+# ====================================================
+def find_top_matches(client):
+    google_search_tool = types.Tool(google_search=types.GoogleSearch())
     
     prompt = f"""
-    [SYSTEM ROLE: REAL-TIME QUANT ANALYST]
-    [DATE: {current_date}]
-    [STRICT RULE: DILARANG MELAKUKAN SIMULASI. WAJIB GUNAKAN DATA ASLI DARI PENCARIAN WEB]
-    
-    TUGAS UTAMA ANDA HARI INI:
-    1. CARI (SEARCH) di web hasil pertandingan tenis ATP/Challenger yang baru saja selesai dalam 24 jam terakhir.
-    2. Lakukan "Blind Backtest": Berikan [CONFIDENCE_HDP: XX%] untuk salah satu laga tersebut seolah belum tahu hasilnya berdasarkan statistik pre-match, lalu bandingkan dengan skor aslinya.
-    3. CARI (SEARCH) di web jadwal pertandingan tenis ATP/Challenger untuk hari ini atau besok.
-    4. Analisa statistik pemain yang akan bertanding. Temukan 1 "SIGNAL GAS" (CONFIDENCE > 85%) dengan kriteria:
-       - Underdog memiliki rekor "Return Points Won" yang kuat.
-       - Favorit memiliki kelemahan servis (Double Faults tinggi atau 1st Serve % rendah).
-    
-    JIKA TIDAK ADA DATA YANG MEMENUHI SYARAT, BERIKAN LABEL [HOLD / NO-BET].
-    
-    FORMAT OUTPUT (SINGKAT & JELAS):
-    === 🧪 REAL-TIME CALIBRATION ===
-    [Analisa laga kemarin berdasarkan data pencarian web]
-    
-    === 🎯 REAL-TIME PREDIKSI PASTI ===
-    MATCH: [Nama Pemain A vs Pemain B]
-    VULNERABILITY: [Kelemahan lawan berdasarkan data nyata web]
-    [CONFIDENCE_HDP: XX%]
-    SIGNAL: [GAS PASANG BESAR / HOLD (NO-BET)]
+    [SYSTEM ROLE: ELITE QUANT COLLECTOR]
+    [DATE: {datetime.now().strftime('%d %B %Y')}]
+
+    TUGAS:
+    Gunakan Google Search untuk mencari maksimal 3 pertandingan tenis ATP/Challenger NYATA yang akan dimainkan dalam 24-48 jam ke depan.
+    HANYA pilih yang memenuhi syarat "Set Handicap +1.5" dengan keyakinan > 85%:
+    - Underdog Return Points Won > 42%
+    - Favorit 1st Serve < 60%
+
+    FORMAT OUTPUT HARUS SANGAT KETAT (HANYA POIN-POIN INI, TANPA TEKS LAIN/BASA-BASI AWALAN/AKHIRAN):
+    - [Pemain Underdog] +1.5 vs [Pemain Favorit] | Confidence: XX% | [1 kalimat alasan statistik spesifik]
+    - [Pemain Underdog] +1.5 vs [Pemain Favorit] | Confidence: XX% | [1 kalimat alasan statistik spesifik]
     """
 
     try:
-        # Menjalankan AI dengan fitur Google Search aktif
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-2.0-flash',
             contents=prompt,
-            config=types.GenerateContentConfig(
-                tools=[{"google_search": {}}]
-            )
+            config=types.GenerateContentConfig(tools=[google_search_tool])
         )
         return response.text
     except Exception as e:
-        return f"Gagal dalam analisis terintegrasi: {e}"
+        print(f"Error AI: {e}")
+        return ""
 
+# ====================================================
+# EKSEKUSI UTAMA (AKUMULASI)
+# ====================================================
 if __name__ == "__main__":
-    print("--- Menjalankan V9.0 (Search Integrated) ---")
-    ai_client = get_client()
+    print("--- Menjalankan V10.1 (Silent Accumulator) ---")
+    client = get_client()
     
-    print("\n[!] Mengakses Google Search untuk mencari data tenis terbaru...")
-    full_analysis = run_integrated_analysis(ai_client)
+    if not client:
+        print("API Key hilang.")
+        exit()
+        
+    parlay_list = load_parlay_list()
     
-    print("\n" + full_analysis)
-    send_telegram(full_analysis)
-    print("\n--- Sesi Selesai ---")
+    # Jika target 30 laga sudah tercapai
+    if len(parlay_list) >= TARGET_MATCHES:
+        full_list = "\n".join(parlay_list)
+        send_telegram(f"🔥 TIKET PARLAY 30 LAGA SELESAI 🔥\n\n{full_list}")
+        print("Target 30 laga tercapai. Tiket final dikirim.")
+        # Jika ingin bot otomatis mereset dan mencari 30 laga baru lagi, hapus tanda '#' di baris bawah ini:
+        # save_parlay_list([]) 
+        exit()
+
+    # Jika belum 30, cari laga baru
+    new_matches_text = find_top_matches(client)
+    
+    if new_matches_text and "-" in new_matches_text:
+        # Filter ketat: Hanya ambil teks yang dimulai dengan tanda strip (poin-poin)
+        new_lines = [line.strip() for line in new_matches_text.split('\n') if line.strip().startswith('-')]
+        
+        if new_lines:
+            # Simpan laga baru ke database lokal
+            for line in new_lines:
+                if len(parlay_list) < TARGET_MATCHES and line not in parlay_list:
+                    parlay_list.append(line)
+            
+            save_parlay_list(parlay_list)
+            
+            # Kirim MURNI HANYA poin-poin prediksi terbaru ke Telegram
+            telegram_message = "\n".join(new_lines)
+            send_telegram(telegram_message)
+            
+            print(f"Ditemukan {len(new_lines)} laga baru. Total tersimpan: {len(parlay_list)}/{TARGET_MATCHES}")
+        else:
+            print("Tidak ada laga yang lolos filter ketat hari ini.")
+    else:
+        print("Tidak ada laga yang lolos filter ketat hari ini.")
