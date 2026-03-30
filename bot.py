@@ -7,6 +7,7 @@ def get_client():
     if not api_key:
         print("ERROR: API Key tidak ditemukan!")
         return None
+    # Menggunakan api_version v1 agar stabil
     return genai.Client(api_key=api_key, http_options={'api_version': 'v1'})
 
 def send_telegram(message):
@@ -35,23 +36,24 @@ def send_telegram(message):
         print(f"Error koneksi Telegram: {e}")
 
 # ====================================================
-# 1. ENGINE KALIBRASI OTOMATIS (MENCARI POLA MENANG)
+# 1. LIVE DATA SCANNER (MARET 2026 FOCUS)
 # ====================================================
-def run_stress_test(client):
+def run_realtime_calibration(client):
     if not client: return "Klien AI tidak siap."
     
-    prompt = """
-    [SYSTEM ROLE: FORENSIC TENNIS ANALYST]
-    TUGAS: Ambil 3 pertandingan ATP atau Challenger yang BARU SAJA SELESAI (dalam 24-48 jam terakhir).
+    # Sinkronisasi Waktu Paksa
+    current_date = "31 Maret 2026"
+    prompt = f"""
+    [SYSTEM ROLE: DATA SCIENTIST & TENNIS ANALYST]
+    [CURRENT DATE: {current_date}]
     
-    PROSES ANALISA:
-    1. Lakukan analisa statistik seolah-olah pertandingan BELUM dimulai.
-    2. Berikan angka [CONFIDENCE_HDP: XX%] untuk probabilitas Underdog menang Handicap +1.5 Set.
-    3. BANDINGKAN LANGSUNG prediksi Anda dengan SKOR ASLI yang sudah terjadi.
+    TUGAS: Ambil 2 pertandingan ATP/Challenger yang baru saja SELESAI di Miami Open atau turnamen Maret 2026 lainnya.
     
-    EVALUASI KRITIS:
-    - Jika prediksi Anda (Confidence Score) meleset dari hasil asli, jelaskan DATA KUNCI apa yang Anda lewatkan (Misal: Kelelahan, Statistik Servis Kedua, dll).
-    - Rumuskan 1 aturan baru yang ketat agar prediksi berikutnya tidak meleset.
+    PROSES:
+    1. Bedah statistik servis & return pre-match.
+    2. Berikan [CONFIDENCE_HDP: XX%] untuk probabilitas Underdog menang Handicap +1.5 Set.
+    3. Verifikasi dengan skor asli 2026.
+    4. Jika [CONFIDENCE_HDP] > 85% tapi kalah, temukan "Anomali Data" (Cedera/Cuaca/Mental).
     """
     
     try:
@@ -61,31 +63,32 @@ def run_stress_test(client):
         return f"Gagal kalibrasi: {e}"
 
 # ====================================================
-# 2. PROMPT OPTIMAL (HANYA AMBIL YANG PASTI)
+# 2. OPTIMIZED ORACLE (THE 85% THRESHOLD)
 # ====================================================
-def generate_optimized_prediction(client):
+def generate_pasti_prediction(client):
     if not client: return "Klien AI tidak siap."
     
-    prompt_live = """
-    [SYSTEM ROLE: QUANT ORACLE V7.0]
-    [STRATEGY: HIGH-PROBABILITY SET HANDICAP +1.5]
+    current_date = "31 Maret 2026"
+    prompt_live = f"""
+    [SYSTEM ROLE: QUANT ORACLE V8.0]
+    [DATE: {current_date}]
+    [STRATEGY: SET HANDICAP +1.5 VALUE HUNTER]
     
-    TUGAS: Cari 1 pertandingan ATP/Challenger NYATA yang akan berlangsung dalam 12-24 jam ke depan.
+    Cari 1 pertandingan NYATA untuk hari ini atau besok (31 Maret / 1 April 2026).
     
-    SYARAT "SIGNAL GAS" (CONFIDENCE > 85%):
-    1. Underdog memiliki persentase "Return Points Won" > 42% dalam 3 laga terakhir.
-    2. Favorit memiliki kecenderungan "Double Faults" tinggi atau persentase servis pertama di bawah 60%.
-    3. Pertemuan H2H terakhir (jika ada) berakhir dengan set ketat.
-    
-    JIKA SYARAT TIDAK TERPENUHI ATAU JADWAL TIDAK DITEMUKAN, BERIKAN LABEL [HOLD/NO-BET].
-    JANGAN MENGARANG JADWAL PERTANDINGAN.
+    KRITERIA "PASTI MENANG" (CONFIDENCE > 85%):
+    - Underdog Return Points Won > 42%.
+    - Favorit 1st Serve % < 60% di laga terakhir.
+    - Kondisi Lapangan mendukung gaya Underdog.
+
+    JIKA JADWAL ATAU DATA TIDAK VALID, BERIKAN LABEL [HOLD/NO-BET].
 
     FORMAT OUTPUT:
-    🎾 MATCH: [Pemain A vs Pemain B]
-    📊 KEY DATA: [Fakta statistik utama yang relevan dengan syarat di atas]
-    ⚠️ [CONFIDENCE_HDP: XX%]
-    💡 SIGNAL: [GAS PASANG BESAR / HOLD (NO-BET)]
-    📝 REASON: [Alasan singkat berdasarkan evaluasi data]
+    MATCH: [Pemain A vs Pemain B]
+    VULNERABILITY: [Kelemahan fatal pemain favorit]
+    [CONFIDENCE_HDP: XX%]
+    SIGNAL: [GAS / HOLD]
+    VALUE REASONING: [Kenapa data ini valid?]
     """
     
     try:
@@ -95,17 +98,17 @@ def generate_optimized_prediction(client):
         return f"Gagal prediksi live: {e}"
 
 if __name__ == "__main__":
-    print("--- Menjalankan Kalibrasi & Optimasi V7.0 ---")
+    print("--- Menjalankan V8.0 (Sync 2026) ---")
     ai_client = get_client()
     
-    print("\n[1/2] Memulai Stress Test (Backtest)...")
-    stress_test_result = run_stress_test(ai_client)
+    print("\n[1/2] Memulai Kalibrasi Real-Time...")
+    calibration = run_realtime_calibration(ai_client)
     
-    print("\n[2/2] Memulai Prediksi Optimal Hari Ini...")
-    prediction_result = generate_optimized_prediction(ai_client)
+    print("\n[2/2] Memulai Prediksi Pasti...")
+    prediction = generate_pasti_prediction(ai_client)
     
-    final_output = f"=== 🧪 HASIL KALIBRASI MASA LALU ===\n{stress_test_result}\n\n=== 🎯 PREDIKSI OPTIMAL HARI INI ===\n{prediction_result}"
+    final_report = f"=== 🧪 KALIBRASI MARET 2026 ===\n{calibration}\n\n=== 🎯 PREDIKSI PASTI ===\n{prediction}"
     
-    print("\n" + final_output)
-    send_telegram(final_output)
+    print("\n" + final_report)
+    send_telegram(final_report)
     print("\n--- Sesi Selesai ---")
