@@ -6,7 +6,7 @@ from google import genai
 from google.genai import types
 
 # ====================================================
-# CONFIGURASI DATABASE LOKAL
+# KONFIGURASI DATABASE LOKAL
 # ====================================================
 DB_FILE = "parlay_raksasa.json"
 TARGET_MATCHES = 30
@@ -65,7 +65,6 @@ def find_top_matches(client):
 
     FORMAT OUTPUT HARUS SANGAT KETAT (HANYA POIN-POIN INI, TANPA TEKS LAIN/BASA-BASI AWALAN/AKHIRAN):
     - [Pemain Underdog] +1.5 vs [Pemain Favorit] | Confidence: XX% | [1 kalimat alasan statistik spesifik]
-    - [Pemain Underdog] +1.5 vs [Pemain Favorit] | Confidence: XX% | [1 kalimat alasan statistik spesifik]
     """
 
     try:
@@ -97,8 +96,8 @@ if __name__ == "__main__":
         full_list = "\n".join(parlay_list)
         send_telegram(f"🔥 TIKET PARLAY 30 LAGA SELESAI 🔥\n\n{full_list}")
         print("Target 30 laga tercapai. Tiket final dikirim.")
-        # Jika ingin bot otomatis mereset dan mencari 30 laga baru lagi, hapus tanda '#' di baris bawah ini:
-        # save_parlay_list([]) 
+        # Hapus list untuk memulai siklus 30 laga yang baru berikutnya
+        save_parlay_list([]) 
         exit()
 
     # Jika belum 30, cari laga baru
@@ -108,19 +107,22 @@ if __name__ == "__main__":
         # Filter ketat: Hanya ambil teks yang dimulai dengan tanda strip (poin-poin)
         new_lines = [line.strip() for line in new_matches_text.split('\n') if line.strip().startswith('-')]
         
+        valid_new_lines = []
         if new_lines:
-            # Simpan laga baru ke database lokal
+            # Simpan laga baru ke database lokal (pastikan tidak duplikat)
             for line in new_lines:
                 if len(parlay_list) < TARGET_MATCHES and line not in parlay_list:
                     parlay_list.append(line)
+                    valid_new_lines.append(line)
             
             save_parlay_list(parlay_list)
             
             # Kirim MURNI HANYA poin-poin prediksi terbaru ke Telegram
-            telegram_message = "\n".join(new_lines)
-            send_telegram(telegram_message)
+            if valid_new_lines:
+                telegram_message = "\n".join(valid_new_lines)
+                send_telegram(telegram_message)
             
-            print(f"Ditemukan {len(new_lines)} laga baru. Total tersimpan: {len(parlay_list)}/{TARGET_MATCHES}")
+            print(f"Ditemukan {len(valid_new_lines)} laga baru. Total tersimpan: {len(parlay_list)}/{TARGET_MATCHES}")
         else:
             print("Tidak ada laga yang lolos filter ketat hari ini.")
     else:
