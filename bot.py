@@ -1,31 +1,17 @@
 import os
-import google.generativeai as genai
-
-# Setup API Key
-api_key = os.environ.get("GEMINI_API_KEY")
-if not api_key:
-    raise ValueError("ERROR: GEMINI_API_KEY tidak ditemukan di Secret GitHub!")
-
-genai.configure(api_key=api_key)
+from google import genai
 
 def generate_prediction():
-    # MENGGUNAKAN NAMA MODEL LENGKAP UNTUK MENGHINDARI 404
-    # Kita arahkan ke model 'gemini-1.5-flash-latest' yang paling stabil
-    model = genai.GenerativeModel(
-        model_name='gemini-1.5-flash',
-        generation_config={
-            "temperature": 0.7,
-            "top_p": 0.95,
-            "max_output_tokens": 2048,
-        }
-    )
+    # Mengambil API Key dari GitHub Secret
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        return "ERROR: API Key tidak ditemukan!"
 
-    learning_context = "Analisis Terakhir: Fokus pada tren servis pertama 48 jam terakhir dan adaptasi kelembapan pesisir."
+    # Inisialisasi Client Baru (SDK 2026)
+    client = genai.Client(api_key=api_key)
     
-    prompt = f"""
+    prompt_text = """
     [SYSTEM LOGIC V3.1 ACTIVE]
-    Konteks: {learning_context}
-    
     Tugas: Lakukan Deep Research & Prediksi Presisi untuk pertandingan tenis ATP/Challenger hari ini.
     Gunakan format output MANDATORY:
     1. Ringkasan Temuan Kunci (Servis, Adaptasi Lapangan)
@@ -33,18 +19,18 @@ def generate_prediction():
     3. Simulasi Worst-Case
     4. Prediksi Skor Set & Keyakinan (%)
     """
-    
+
     try:
-        # Melakukan generate content dengan penanganan error yang lebih baik
-        response = model.generate_content(prompt)
-        if response.text:
-            return response.text
-        else:
-            return "AI mengembalikan respon kosong. Cek kuota API Anda."
+        # Memanggil model gemini-1.5-flash dengan SDK terbaru
+        response = client.models.generate_content(
+            model='gemini-1.5-flash',
+            contents=prompt_text
+        )
+        return response.text
     except Exception as e:
-        return f"GAGAL MEMANGGIL AI: {str(e)}"
+        return f"GAGAL TOTAL: {str(e)}"
 
 if __name__ == "__main__":
-    print("--- Memulai Sesi Analisis Cloud 24 Jam (V1.5 Flash Stabil) ---")
+    print("--- Memulai Sesi Analisis Cloud 24 Jam (SDK 2.0 - 2026) ---")
     result = generate_prediction()
     print(result)
