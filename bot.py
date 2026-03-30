@@ -1,11 +1,7 @@
 import os
 import requests
-from datetime import datetime
 from google import genai
 
-# ====================================================
-# 1. SETUP API & TELEGRAM (ANTI-ERROR 400)
-# ====================================================
 def get_client():
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -23,99 +19,93 @@ def send_telegram(message):
     
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     
+    # Batasi panjang pesan agar tidak ditolak Telegram (Limit 4096 karakter)
     if len(message) > 4000:
         message = message[:4000] + "\n\n...[Teks dipotong]"
         
-    # MENGHAPUS parse_mode="Markdown" UNTUK MENCEGAH ERROR 400
     payload = {"chat_id": chat_id, "text": message}
     
     try:
         response = requests.post(url, json=payload)
         if response.status_code == 200:
-            print("Berhasil mengirim ke Telegram!")
+            print("Berhasil mengirim laporan ke Telegram!")
         else:
-            print(f"Gagal kirim ke Telegram. Status: {response.status_code} - {response.text}")
+            print(f"Gagal kirim ke Telegram. Status: {response.status_code}")
     except Exception as e:
         print(f"Error koneksi Telegram: {e}")
 
 # ====================================================
-# 2. MESIN KALIBRASI (TRIAL & ERROR MASA LALU)
+# 1. ENGINE KALIBRASI OTOMATIS (MENCARI POLA MENANG)
 # ====================================================
-def calibrate_system(client):
-    if not client: return ""
+def run_stress_test(client):
+    if not client: return "Klien AI tidak siap."
     
-    # SILAKAN GANTI NAMA PEMAIN DI BAWAH INI DENGAN PERTANDINGAN KEMARIN
-    test_cases = [
-        {"p1": "Gael Monfils", "p2": "Dusan Lajovic", "event": "ATP Miami 2026"},
-        {"p1": "Ben Shelton", "p2": "Lorenzo Musetti", "event": "ATP Miami 2026"}
-    ]
+    prompt = """
+    [SYSTEM ROLE: FORENSIC TENNIS ANALYST]
+    TUGAS: Ambil 3 pertandingan ATP atau Challenger yang BARU SAJA SELESAI (dalam 24-48 jam terakhir).
     
-    report = "=== 🧪 SESI KALIBRASI BACKTEST ===\n"
+    PROSES ANALISA:
+    1. Lakukan analisa statistik seolah-olah pertandingan BELUM dimulai.
+    2. Berikan angka [CONFIDENCE_HDP: XX%] untuk probabilitas Underdog menang Handicap +1.5 Set.
+    3. BANDINGKAN LANGSUNG prediksi Anda dengan SKOR ASLI yang sudah terjadi.
     
-    for match in test_cases:
-        prompt = f"""
-        [SIMULATION MODE: BLIND BACKTEST]
-        Pertandingan: {match['p1']} vs {match['p2']} ({match['event']}).
-        
-        TUGAS: Lakukan analisa statistik (Servis & H2H) seolah laga ini BELUM dimulai.
-        Wajib berikan [CONFIDENCE_HDP: XX%] untuk probabilitas Underdog mencuri minimal 1 set.
-        """
-        try:
-            response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
-            report += f"\n🎾 {match['p1']} vs {match['p2']}\n{response.text}\n"
-            report += "-" * 20 + "\n"
-        except Exception as e:
-            report += f"Gagal kalibrasi: {e}\n"
-            
-    return report
+    EVALUASI KRITIS:
+    - Jika prediksi Anda (Confidence Score) meleset dari hasil asli, jelaskan DATA KUNCI apa yang Anda lewatkan (Misal: Kelelahan, Statistik Servis Kedua, dll).
+    - Rumuskan 1 aturan baru yang ketat agar prediksi berikutnya tidak meleset.
+    """
+    
+    try:
+        response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
+        return response.text
+    except Exception as e:
+        return f"Gagal kalibrasi: {e}"
 
 # ====================================================
-# 3. MESIN PREDIKSI LIVE (V6.0 PRECISION FILTER)
+# 2. PROMPT OPTIMAL (HANYA AMBIL YANG PASTI)
 # ====================================================
-def generate_live_prediction(client):
-    if not client: return ""
+def generate_optimized_prediction(client):
+    if not client: return "Klien AI tidak siap."
     
-    tanggal_sekarang = datetime.now().strftime('%Y-%m-%d')
+    prompt_live = """
+    [SYSTEM ROLE: QUANT ORACLE V7.0]
+    [STRATEGY: HIGH-PROBABILITY SET HANDICAP +1.5]
     
-    prompt_live = f"""
-    [SYSTEM ROLE: TENNIS QUANTITATIVE ANALYST V6.0]
-    [WAKTU SEKARANG: {tanggal_sekarang} (Maret 2026)]
-    [STRICT RULE: DILARANG MENGHALUSINASI JADWAL. GUNAKAN JADWAL ATP/CHALLENGER NYATA HARI INI]
+    TUGAS: Cari 1 pertandingan ATP/Challenger NYATA yang akan berlangsung dalam 12-24 jam ke depan.
+    
+    SYARAT "SIGNAL GAS" (CONFIDENCE > 85%):
+    1. Underdog memiliki persentase "Return Points Won" > 42% dalam 3 laga terakhir.
+    2. Favorit memiliki kecenderungan "Double Faults" tinggi atau persentase servis pertama di bawah 60%.
+    3. Pertemuan H2H terakhir (jika ada) berakhir dengan set ketat.
+    
+    JIKA SYARAT TIDAK TERPENUHI ATAU JADWAL TIDAK DITEMUKAN, BERIKAN LABEL [HOLD/NO-BET].
+    JANGAN MENGARANG JADWAL PERTANDINGAN.
 
-    Tugas: Analisa 1 pertandingan ATP/Challenger NYATA yang berlangsung hari ini. Jika tidak ada jadwal yang Anda yakini 100% nyata, tulis "TIDAK ADA JADWAL VALID HARI INI".
-    
-    FILTER KEAMANAN (WAJIB):
-    1. PENALTI MOMENTUM: Kurangi akurasi jika pemain favorit kelelahan/kalah set pertama di laga sebelumnya.
-    2. SURFACE CHECK: Jika lapangan CLAY, utamakan pemain ulet dengan Return Points Won tinggi.
-    3. H2H CHECK: Underdog hanya boleh dipegang (Handicap +1.5) jika pernah merepotkan unggulan dalam pertemuan sebelumnya.
-
-    WAJIB OUTPUT DALAM FORMAT SINGKAT INI:
-    🎾 MATCH HARI INI: [Nama Pemain A vs Pemain B]
-    📊 STATS: [1 Kalimat fakta servis/return yang paling krusial]
-    📉 MOMENTUM: [Kondisi fisik/kelelahan]
-    ⚠️ [CONFIDENCE_HDP: XX%] (Isi dengan angka prediksi Anda)
-    🏆 PREDIKSI SKOR: [X-X]
-    💡 REKOMENDASI: [GAS PASANG / HOLD (NO-BET)]
+    FORMAT OUTPUT:
+    🎾 MATCH: [Pemain A vs Pemain B]
+    📊 KEY DATA: [Fakta statistik utama yang relevan dengan syarat di atas]
+    ⚠️ [CONFIDENCE_HDP: XX%]
+    💡 SIGNAL: [GAS PASANG BESAR / HOLD (NO-BET)]
+    📝 REASON: [Alasan singkat berdasarkan evaluasi data]
     """
     
     try:
         response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt_live)
         return response.text
     except Exception as e:
-        return f"Gagal memproses prediksi live: {e}"
+        return f"Gagal prediksi live: {e}"
 
-# ====================================================
-# 4. EKSEKUSI UTAMA
-# ====================================================
 if __name__ == "__main__":
-    print("--- Memulai Sesi Quant v6.0 ---")
-    
+    print("--- Menjalankan Kalibrasi & Optimasi V7.0 ---")
     ai_client = get_client()
     
-    hasil_kalibrasi = calibrate_system(ai_client)
-    hasil_live = generate_live_prediction(ai_client)
+    print("\n[1/2] Memulai Stress Test (Backtest)...")
+    stress_test_result = run_stress_test(ai_client)
     
-    final_report = f"{hasil_kalibrasi}\n\n=== 🎯 PREDIKSI LIVE HARI INI ===\n{hasil_live}"
+    print("\n[2/2] Memulai Prediksi Optimal Hari Ini...")
+    prediction_result = generate_optimized_prediction(ai_client)
     
-    print(final_report)
-    send_telegram(final_report)
+    final_output = f"=== 🧪 HASIL KALIBRASI MASA LALU ===\n{stress_test_result}\n\n=== 🎯 PREDIKSI OPTIMAL HARI INI ===\n{prediction_result}"
+    
+    print("\n" + final_output)
+    send_telegram(final_output)
+    print("\n--- Sesi Selesai ---")
